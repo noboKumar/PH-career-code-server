@@ -30,16 +30,23 @@ async function run() {
       .db("career_Code")
       .collection("applications");
 
-    // job API
-    app.get("/jobs", async (req, res) => {
-      const result = await jobsCollection.find().toArray();
-      res.send(result);
-    });
-
     app.get("/jobs/:id", async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const result = await jobsCollection.findOne(query);
+      res.send(result);
+    });
+
+    // job API
+    app.get("/jobs", async (req, res) => {
+      const email = req.query.email;
+      const query = {};
+
+      if (email) {
+        query.hr_email = email;
+      }
+
+      const result = await jobsCollection.find(query).toArray();
       res.send(result);
     });
 
@@ -54,6 +61,13 @@ async function run() {
       const email = req.query.email;
       const query = { applicant: email };
       const result = await applicationsCollection.find(query).toArray();
+      res.send(result);
+    });
+
+    // add to jobs API
+    app.post("/jobs", async (req, res) => {
+      const jobData = req.body;
+      const result = await jobsCollection.insertOne(jobData);
       res.send(result);
     });
   } finally {
