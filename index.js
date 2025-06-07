@@ -2,6 +2,7 @@ require("dotenv").config();
 const express = require("express");
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const cors = require("cors");
+const jwt = require("jsonwebtoken");
 const app = express();
 const port = process.env.port || 3000;
 
@@ -10,7 +11,6 @@ app.use(cors());
 app.use(express.json());
 
 // mongoDB
-
 const uri = `mongodb+srv://${process.env.DB_user}:${process.env.DB_password}@cluster0.bmuc12j.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
 
 const client = new MongoClient(uri, {
@@ -25,11 +25,21 @@ async function run() {
   try {
     await client.connect();
 
+    // DB collections
     const jobsCollection = client.db("career_Code").collection("jobs");
     const applicationsCollection = client
       .db("career_Code")
       .collection("applications");
 
+    // jwt related API
+    app.post("/jwt", async (req, res) => {
+      const { email } = req.body;
+      const user = { email };
+      const token = jwt.sign(user, "secret", { expiresIn: "1h" });
+      res.send({ token });
+    });
+
+    // job API
     app.get("/jobs/:id", async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
@@ -37,13 +47,12 @@ async function run() {
       res.send(result);
     });
 
-    // job API
     app.get("/jobs", async (req, res) => {
       const email = req.query.email;
       const query = {};
 
       if (email) {
-        query.hr_email = email;
+        query.poster = email;
       }
 
       const result = await jobsCollection.find(query).toArray();
