@@ -3,12 +3,19 @@ const express = require("express");
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const cors = require("cors");
 const jwt = require("jsonwebtoken");
+const cookieParser = require("cookie-parser");
 const app = express();
 const port = process.env.port || 3000;
 
 // middleware
-app.use(cors());
+app.use(
+  cors({
+    origin: ["http://localhost:5173"],
+    credentials: true,
+  })
+);
 app.use(express.json());
+app.use(cookieParser());
 
 // mongoDB
 const uri = `mongodb+srv://${process.env.DB_user}:${process.env.DB_password}@cluster0.bmuc12j.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
@@ -33,10 +40,15 @@ async function run() {
 
     // jwt related API
     app.post("/jwt", async (req, res) => {
-      const { email } = req.body;
-      const user = { email };
-      const token = jwt.sign(user, "secret", { expiresIn: "1h" });
-      res.send({ token });
+      const userData = req.body;
+      const token = jwt.sign(userData, process.env.JWT_SECRET, { expiresIn: "1h" });
+
+      res.cookie("token", token, {
+        httpOnly: true,
+        secure: false,
+      });
+
+      res.send({ success: true });
     });
 
     // job API
@@ -79,6 +91,7 @@ async function run() {
       const result = await jobsCollection.insertOne(jobData);
       res.send(result);
     });
+    
   } finally {
   }
 }
