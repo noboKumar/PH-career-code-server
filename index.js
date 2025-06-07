@@ -17,6 +17,30 @@ app.use(
 app.use(express.json());
 app.use(cookieParser());
 
+const logger = (req, res, next) => {
+  console.log("logger middleware");
+  next();
+};
+
+const verifyToken = (req, res, next) => {
+  const token = req?.cookies?.token;
+  console.log("cookies in middleware", token);
+
+  if (!token) {
+    return res.status(401).send({ message: "unauthorized access" });
+  }
+
+  jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
+    if (err) {
+      return res.status(401).send({ message: "unauthorized access" });
+    }
+    req.decoded = decoded;
+    console.log(decoded);
+  });
+
+  next();
+};
+
 // mongoDB
 const uri = `mongodb+srv://${process.env.DB_user}:${process.env.DB_password}@cluster0.bmuc12j.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
 
@@ -41,7 +65,9 @@ async function run() {
     // jwt related API
     app.post("/jwt", async (req, res) => {
       const userData = req.body;
-      const token = jwt.sign(userData, process.env.JWT_SECRET, { expiresIn: "1h" });
+      const token = jwt.sign(userData, process.env.JWT_SECRET, {
+        expiresIn: "1h",
+      });
 
       res.cookie("token", token, {
         httpOnly: true,
@@ -78,8 +104,13 @@ async function run() {
       res.send(result);
     });
 
-    app.get("/applications", async (req, res) => {
+    app.get("/applications", logger, verifyToken, async (req, res) => {
       const email = req.query.email;
+
+      if (email !== req.decoded.email) {
+        return res.status(403).send({ message: "forbidden access" });
+      }
+
       const query = { applicant: email };
       const result = await applicationsCollection.find(query).toArray();
       res.send(result);
@@ -91,7 +122,6 @@ async function run() {
       const result = await jobsCollection.insertOne(jobData);
       res.send(result);
     });
-    
   } finally {
   }
 }
